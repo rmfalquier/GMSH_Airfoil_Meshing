@@ -35,7 +35,8 @@
 *.AIRFOILS_IN
 *.AIRFOILS_OUT
 
-# Workspace Specific
+# VSCODE Workspace Specific
 *.json
 *.vscode
 *.References
+*.code-workspace
