@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Program Specific
+*.AIRFOILS_IN
+*.AIRFOILS_OUT
+
+# Workspace Specific
+*.json
+*.vscode
+*.References
