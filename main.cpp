@@ -1,9 +1,12 @@
 // TODO: Better comments
 // TODO: Make more input based
-// TODO: Functions
-// TODO: Make more general
+// TODO: Make more function based
+// TODO: Experiment with splines instead of lines: BSpline ( expression ) = { expression-list }; and Spline ( expression ) = { expression-list };
+// TODO: Need to better understand transfinite definitions
 
-// GMSH Needs to export the 3D mesh in Version2 ASCII Format
+//! Left off at the definition of transverse curve loops for surface definitions, remember to use RH rule pointing away from surfaces and into holes
+
+//! GMSH Needs to export the 3D mesh in Version2 ASCII Format
 
 #include <iostream>
 #include <fstream>
@@ -13,15 +16,24 @@
 
 int main(){
     // AIRFOILE FILE NAME
-    std::string in_airfoil_file_name{"./.AIRFOILS_IN/NACA2412.txt"};
+    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/NACA2412.txt"};
+    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/NACA2412.geo"};
+    std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_prof.dat"};
+    std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_PROF.geo"};
+
+    // MESH PARAMETERS
+    int extrude_dist {2};
 
     // STORAGE CONTAINERS
     std::string line{};
     std::vector<std::vector<double>> airfoil_pts;
 
-    // OPEN AND READ AIRFOIL FILE TO SAVE DATA IN THE AIRFOIL POINT VECTOR
+    // FILE PARAMETERS
     std::ifstream in_file;
     in_file.open(in_airfoil_file_name);
+    std::ofstream out_file{out_airfoil_file_name};
+
+    // OPEN AND READ AIRFOIL FILE TO SAVE DATA IN THE AIRFOIL POINT VECTOR
     if (!in_file) {
         std::cerr << "Problem opening airfoil file" << std::endl;
         return 1;
@@ -46,107 +58,212 @@ int main(){
     }
 
     // CREATE AND WRITE OUTPUT FILE
-    std::string out_airfoil_file_name {"./.AIRFOILS_OUT/NACA2412.geo"};
-    std::ofstream out_file{out_airfoil_file_name};
     if (!out_file) {
         std::cerr << "Error opening output file" << std::endl;
         return 1;
     }
     else{
-        // WRITE AIRFOIL POINTS
-        int point_number {0}; //GMSH Formatting Starts at 1
+        // DEFINE POINTS
+        int point_ct {1}; // GMSH Formatting Starts at 1
+
+        std::vector<int> af_side_one_points{};
+        std::vector<int> af_side_two_points{};
+        std::vector<int> box_side_one_points{};
+        std::vector<int> box_side_two_points{};
+
+        // Write Airfoil Points - Clockwise
         for(auto xy_pt:airfoil_pts){
-            ++point_number;
-            out_file << "Point(" << point_number << ") = {" <<
+            out_file << "Point(" << point_ct << ") = {" <<
                 xy_pt.front() << ", " << xy_pt.back() << 
                 ", 0.0, 1.0};" << std::endl; 
-        }
 
-        // WRITE BOX POINTS - CLOCKWISE
-        out_file << "Point(" << point_number+1 << ") = {-13.5, -14.0, 0.0, 1.0};" << std::endl;
-        out_file << "Point(" << point_number+2 << ") = {14.5, -14.0, 0.0, 1.0};" << std::endl; 
-        out_file << "Point(" << point_number+3 << ") = {14.5, 14.0, 0.0, 1.0};" << std::endl; 
-        out_file << "Point(" << point_number+4 << ") = {-13.5, 14.0, 0.0, 1.0};" << std::endl;  
-        point_number += 4;
+            out_file << "Point(" << (point_ct + airfoil_pts.size()) << ") = {" 
+                << xy_pt.front() << ", " << xy_pt.back() << ", " 
+                << extrude_dist << ", 1.0};" << std::endl; 
 
-        // WRITE AIRFOIL LINES
-        for (int i = 1; i <= (point_number-4); i++){
-            if(i==(point_number-4)){
-                // out_file << "Line(" << i << ") = {" << i << ", " << 1 << "};" << std::endl; 
-                out_file << "Line(" << (point_number+i) << ") = {" << i << ", " << 1 << "};" << std::endl; 
-            }
-            else{
-                // out_file << "Line(" << i << ") = {" << i << ", " << i+1 << "};" << std::endl; 
-                out_file << "Line(" << (point_number+i) << ") = {" << i << ", " << i+1 << "};" << std::endl; 
-            }
+            af_side_one_points.push_back(point_ct);    
+            af_side_two_points.push_back(point_ct + airfoil_pts.size());
+            point_ct++;
         }
+        point_ct += airfoil_pts.size();
 
-        // WRITE BOX LINES
-        for (int i = (point_number-3); i <= point_number; i++){
-            if(i==point_number){
-                // out_file << "Line(" << i << ") = {" << i << ", " << (point_number-3) << "};" << std::endl; 
-                out_file << "Line(" << (point_number+i) << ") = {" << i << ", " << (point_number-3) << "};" << std::endl; 
-            }
-            else{
-                // out_file << "Line(" << i << ") = {" << i << ", " << i+1 << "};" << std::endl; 
-                out_file << "Line(" << (point_number+i) << ") = {" << i << ", " << i+1 << "};" << std::endl; 
-            }
-        }
+        // Write Side One Box Points - Clockwise
+        out_file << "Point(" << point_ct << ") = {-13.5, -14.0, 0.0, 1.0};" << std::endl;
+        box_side_one_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {14.5, -14.0, 0.0, 1.0};" << std::endl; 
+        box_side_one_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {14.5, 14.0, 0.0, 1.0};" << std::endl; 
+        box_side_one_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {-13.5, 14.0, 0.0, 1.0};" << std::endl;  
+        box_side_one_points.push_back(point_ct);
+        point_ct++;
+
+        // Write Side Two Box Points - Clockwise
+        out_file << "Point(" << point_ct << ") = {-13.5, -14.0, "<< extrude_dist << ", 1.0};" << std::endl;
+        box_side_two_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {14.5, -14.0, "<< extrude_dist << ", 1.0};" << std::endl;
+        box_side_two_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {14.5, 14.0, "<< extrude_dist << ", 1.0};" << std::endl;
+        box_side_two_points.push_back(point_ct);
+        point_ct++;
+        out_file << "Point(" << point_ct << ") = {-13.5, 14.0, "<< extrude_dist << ", 1.0};" << std::endl; 
+        box_side_two_points.push_back(point_ct);
+        point_ct++;
+
+        // DEFINE LINES
+        int line_ct {1}; // GMSH Formatting Starts at 1
         
-        // UPDATE POINT NUMBER
-        point_number *= 2;
+        std::vector<int> af_side_one_lines{};
+        std::vector<int> af_side_two_lines{};
+        std::vector<int> af_tranv_lines{};
 
-        // WRITE CURVE LOOPS
-        out_file << "Curve Loop(" << (point_number+1) << ") = {";
-        for (int i = (point_number-3); i <= point_number; i++){
-            if(i==point_number){
-                out_file << i << "};" << std::endl;
-            }else{
-                out_file << i << ", ";
+        std::vector<int> box_side_one_lines{};
+        std::vector<int> box_side_two_lines{};
+        std::vector<int> box_tranv_lines{};
+
+        // Write Side One Airfoil Lines - Clockwise
+        for(auto pt_num:af_side_one_points){
+            if (pt_num==af_side_one_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << af_side_one_points.front() << "};" << std::endl;
+            }else {
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
             }
+            af_side_one_lines.push_back(line_ct);
+            line_ct++; 
         }
 
-        out_file << "Curve Loop(" << (point_number+2) << ") = {";
-        for (int i = ((point_number/2)+1); i <= (point_number-4); i++){
-            if(i==(point_number-4)){
-                out_file << i << "};" << std::endl;
-            }else{
-                out_file << i << ", ";
+        // Write Side Two Airfoil Lines - Clockwise
+        for(auto pt_num:af_side_two_points){
+            if (pt_num==af_side_two_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << af_side_two_points.front() << "};" << std::endl;
+            }else {
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
             }
+            af_side_two_lines.push_back(line_ct);
+            line_ct++; 
         }
 
-        // WRITE PLANE SURFACE
-        out_file << "Plane Surface(" << (point_number+3) << ") = {" 
-            << (point_number+1) << ", " << (point_number+2) << "};" << std::endl; 
+        // Write Transverse Airfoil Lines - Clockwise
+        for (long long unsigned int i = 0; i<af_side_one_points.size(); i++){
+            out_file << "Line(" << (line_ct) << ") = {" << af_side_one_points.at(i) << ", " << af_side_two_points.at(i) << "};" << std::endl;
+            af_tranv_lines.push_back(line_ct);
+            line_ct++; 
+        }
 
-        // WRITE EXTRUDE
-        out_file 
-         << "Extrude {0.0, 0.0, 2.0} {" << std::endl 
-         << "   Surface{" << (point_number+3) << "};" << std::endl 
-         << "   Layers{1};" << std::endl 
-         << "   Recombine;" << std::endl //Recombine is for quadrilateral versus triangular mesh
-         << "}" << std::endl; 
+        // Write Side One Box Lines - Clockwise
+        for(auto pt_num:box_side_one_points){
+            if (pt_num==box_side_one_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << box_side_one_points.front() << "};" << std::endl;
+            }else {
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
+            }
+            box_side_one_lines.push_back(line_ct);
+            line_ct++; 
+        }
+
+        // Write Side Two Airfoil Lines - Clockwise
+        for(auto pt_num:box_side_two_points){
+            if (pt_num==box_side_two_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << box_side_two_points.front() << "};" << std::endl;
+            }else {
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
+            }
+            box_side_two_lines.push_back(line_ct);
+            line_ct++; 
+        }
+
+        // Write Transverse Airfoil Lines - Clockwise
+        for (long long unsigned int i = 0; i<box_side_one_points.size(); i++){
+            out_file << "Line(" << (line_ct) << ") = {" << box_side_one_points.at(i) << ", " << box_side_two_points.at(i) << "};" << std::endl;
+            box_tranv_lines.push_back(line_ct);
+            line_ct++; 
+        }
+
+        // DEFINE CURVE LOOPS
+        int curve_ct {1};
+
+        int af_side_one_curve{};
+        int af_side_two_curve{};
+        // std::vector<int> af_tranv_curves{};
+
+        int box_side_one_curve{};
+        int box_side_two_curve{};
+        // std::vector<int> box_tranv_curves{};
+
+        // Airfoil Side One Curve Loop - Hole
+        out_file << "Curve Loop(" << (curve_ct) << ") = {";
+        for (auto ln_num:af_side_one_lines){
+            if(ln_num==af_side_one_lines.back()){
+                out_file << ln_num << "};" << std::endl;
+            }else{
+                out_file << ln_num << ", ";
+            }
+        }
+        af_side_one_curve = curve_ct;
+        curve_ct++;
+
+        // Airfoil Side Two Curve Loop - Hole
+        out_file << "Curve Loop(" << (curve_ct) << ") = {";
+        for (int ln_num = af_side_two_lines.back(); ln_num>=af_side_two_lines.front(); ln_num--){
+            if(ln_num==af_side_two_lines.front()){
+                out_file << ln_num << "};" << std::endl;
+            }else{
+                out_file << ln_num << ", ";
+            }
+        }
+        af_side_two_curve = curve_ct;
+        curve_ct++;
+
+        // Box Side One Curve Loop - Face
+        out_file << "Curve Loop(" << (curve_ct) << ") = {";
+        for (int ln_num = box_side_one_lines.back(); ln_num>=box_side_one_lines.front(); ln_num--){
+            if(ln_num==box_side_one_lines.front()){
+                out_file << ln_num << "};" << std::endl;
+            }else{
+                out_file << ln_num << ", ";
+            }
+        }
+        box_side_one_curve = curve_ct;
+        curve_ct++;
+
+        // Box Side Two Curve Loop - Face
+        out_file << "Curve Loop(" << (curve_ct) << ") = {";
+        for (auto ln_num:box_side_two_lines){
+            if(ln_num==box_side_two_lines.back()){
+                out_file << ln_num << "};" << std::endl;
+            }else{
+                out_file << ln_num << ", ";
+            }
+        }
+        box_side_two_curve = curve_ct;
+        curve_ct++;
+
+        // DEFINE PLANE SURFACES
+        int surface_ct {1};
+
+        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
+            << (box_side_one_curve) << ", " << (af_side_one_curve) << "};" << std::endl; 
+        surface_ct++;
+
+        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
+            << (box_side_two_curve) << ", " << (af_side_two_curve) << "};" << std::endl; 
+        surface_ct++;    
+
+        // Define Surface Loops 
+        // Define Volumes
+        // Define Physical Surfaces
+        // Define Physical Volumes
+        // Recombine External Surfaces 
+        //? Boundary Layer 
+
+        /*
 
         // PHYSICAL GROUPS 
-        int foil_pts {(point_number-8)/2};
-        // Per above definition
-        int right {point_number+3};
-
-        // First Surface after last line is defined is the bottom of the extrude:
-        // (Jump from last line + remaining extruded face lines + number of airfoil lines + 
-        // number of bottom conecting vertices + 2 for indexing)
-        int bottom {point_number + 5 + 3 + foil_pts + 2 + 2}; 
-
-        // Next Surfaces clockwise around the extrude add 4 to index
-        int outlet {bottom + 4};
-        int top {outlet + 4};
-        int inlet {top + 4};
-
-        // Right: 
-        // One face per airfoil point where each face adds 4 to index + 1 for last index
-        int left {inlet + (foil_pts*4) + 1};
-
-        // Writing:
         out_file << "Physical Surface(\"Sides\") = {" << right << ", " << left << "};" << std::endl;
         out_file << "Physical Surface(\"Bottom\") = {" << bottom << "};" << std:: endl;
         out_file << "Physical Surface(\"Outlet\") = {" << outlet << "};" << std::endl;
@@ -164,31 +281,10 @@ int main(){
         // VOLUME
         out_file << "Physical Volume(\"Vol\") = {1};" << std::endl;  
 
-        /*
-        // TRANSFINITE SURFACE: RIGHT
-        out_file << "Transfinite Surface {" << right << "} = {";
-        for (int i = 1; i <= (foil_pts+4); i++){
-            if (i<(foil_pts+4)){
-                out_file << i << ", ";
-            }else {
-                out_file << i << "};" << std::endl;
-            }
-        }
-
-        // TRANSFINITE SURFACE: LEFT
-        out_file << "Transfinite Surface {" << left << "} = {"
-            << ((point_number/2)+1) << ", " << ((point_number/2)+2) << ", " 
-            << ((point_number/2)+6) << ", " << ((point_number/2)+10) << ", ";
-        int left_clockwise_start {((point_number/2)+18)+((foil_pts-2)*4)};
-        for (int i = left_clockwise_start; i > ((point_number/2)+18); i-=4){
-                out_file << i << ", ";
-        }
-        out_file << ((point_number/2)+18) << ", " << ((point_number/2)+17) << "};" << std::endl;
-        */
-
         // RECOMBINE SURFACES
         out_file << "Recombine Surface {" << left << "};" << std::endl;
         out_file << "Recombine Surface {" << right << "};" << std::endl;
+        */
     }
 
     // CLOSE FILES
