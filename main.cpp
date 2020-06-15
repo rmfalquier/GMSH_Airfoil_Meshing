@@ -1,10 +1,6 @@
-// TODO: Better comments
 // TODO: Make more input based
 // TODO: Make more function based
 // TODO: Experiment with splines instead of lines: BSpline ( expression ) = { expression-list }; and Spline ( expression ) = { expression-list };
-// TODO: Need to better understand transfinite definitions
-
-// ! THIS VERSION DOES NOT PRODUCE WHAT WE NEED. IT IS ELEGANT IN THAT IT ATTEMPTS TO DEFINE EVERYTHING FROM SCRATCH BUT DOES NOT PRODUCE WHAT WE WANT
 
 // ! GMSH Needs to export the 3D mesh in Version2 ASCII Format
 
@@ -16,13 +12,17 @@
 
 int main(){
     // AIRFOILE FILE NAME
-    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/NACA2412.txt"};
-    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/NACA2412.geo"};
-    std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_prof.dat"};
-    std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_PROF.geo"};
+    std::string in_airfoil_file_name{"./.AIRFOILS_IN/NACA2412.txt"};
+    std::string out_airfoil_file_name {"./.AIRFOILS_OUT/NACA2412.geo"};
+    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_prof.dat"};
+    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_PROF.geo"};
+    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_braked_100.dat"};
+    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_BRAKED_PROF.geo"};
 
     // MESH PARAMETERS
-    int extrude_dist {1};
+    double square_side {30.0};
+    double grid_size {square_side/20};
+    double mesh_thickness {square_side/10};
 
     // STORAGE CONTAINERS
     std::string line{};
@@ -63,364 +63,178 @@ int main(){
         return 1;
     }
     else{
-        // DEFINE POINTS
-        int point_ct {1}; // GMSH Formatting Starts at 1
-
-        std::vector<int> af_side_one_points{};
-        std::vector<int> af_side_two_points{};
-        std::vector<int> box_side_one_points{};
-        std::vector<int> box_side_two_points{};
-
-        // Check for identical first and last coordinates, modify accordingly
+        // MAKE ANY NECCESSARY MODS TO AIRFOIL POINTS
+        // Check for identical first and last airfoil coordinates, modify accordingly
         if(airfoil_pts.front()==airfoil_pts.back()){
             airfoil_pts.pop_back();
         }
 
+        // Check for odd number of triangles
+        if((airfoil_pts.size()%2)!=0){
+            std::vector<double> xy_pt_last {airfoil_pts.back()};
+            std::vector<double> xy_pt_first {airfoil_pts.front()};
+            std::vector<double> new_pt{};
+
+            double new_x {xy_pt_last.front() + ((xy_pt_first.front() - xy_pt_last.front())/2)};
+            double new_y {xy_pt_last.back() + ((xy_pt_first.back() - xy_pt_last.back())/2)};
+            new_pt.push_back(new_x);
+            new_pt.push_back(new_y);
+            airfoil_pts.push_back(new_pt);
+        }
+        
+        // DEFINE POINTS
+        int point_ct {1}; // GMSH Formatting Starts at 1
+
+        std::vector<int> box_side_points{};
+        std::vector<int> af_side_points{};
+
+        // Write Box Points - Counterclockwise from bottom left corner
+        out_file << "Point(" << point_ct << ") = {"
+                 << -((square_side/2)-0.5) << ", " << -(square_side/2) << ", 0.0, " 
+                 << grid_size << "};" << std::endl;
+        box_side_points.push_back(point_ct);
+        point_ct++;
+
+        out_file << "Point(" << point_ct << ") = {"
+                 << -((square_side/2)-0.5) << ", " << (square_side/2) << ", 0.0, " 
+                 << grid_size << "};" << std::endl;
+        box_side_points.push_back(point_ct);
+        point_ct++;
+
+        out_file << "Point(" << point_ct << ") = {"
+                 << ((square_side/2)+0.5) << ", " << (square_side/2) << ", 0.0, " 
+                 << grid_size << "};" << std::endl;
+        box_side_points.push_back(point_ct);
+        point_ct++;
+
+        out_file << "Point(" << point_ct << ") = {"
+                 << ((square_side/2)+0.5) << ", " << -(square_side/2) << ", 0.0, " 
+                 << grid_size << "};" << std::endl;
+        box_side_points.push_back(point_ct);
+        point_ct++;
+
         // Write Airfoil Points - Clockwise
         for(auto xy_pt:airfoil_pts){
-            out_file << "Point(" << point_ct << ") = {" <<
-                xy_pt.front() << ", " << xy_pt.back() << 
-                ", 0.0, 1.0};" << std::endl; 
+            out_file << "Point(" << point_ct << ") = {" 
+                     << xy_pt.front() << ", " << xy_pt.back() << ", 0.0, " 
+                     << grid_size << "};" << std::endl; 
 
-            out_file << "Point(" << (point_ct + airfoil_pts.size()) << ") = {" 
-                << xy_pt.front() << ", " << xy_pt.back() << ", " 
-                << extrude_dist << ", 1.0};" << std::endl; 
-
-            af_side_one_points.push_back(point_ct);    
-            af_side_two_points.push_back(point_ct + airfoil_pts.size());
+            af_side_points.push_back(point_ct);    
             point_ct++;
         }
-        point_ct += airfoil_pts.size();
-
-        // Write Side One Box Points - Clockwise
-        out_file << "Point(" << point_ct << ") = {-13.5, -14.0, 0.0, 1.0};" << std::endl;
-        box_side_one_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {14.5, -14.0, 0.0, 1.0};" << std::endl; 
-        box_side_one_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {14.5, 14.0, 0.0, 1.0};" << std::endl; 
-        box_side_one_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {-13.5, 14.0, 0.0, 1.0};" << std::endl;  
-        box_side_one_points.push_back(point_ct);
-        point_ct++;
-
-        // Write Side Two Box Points - Clockwise
-        out_file << "Point(" << point_ct << ") = {-13.5, -14.0, "<< extrude_dist << ", 1.0};" << std::endl;
-        box_side_two_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {14.5, -14.0, "<< extrude_dist << ", 1.0};" << std::endl;
-        box_side_two_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {14.5, 14.0, "<< extrude_dist << ", 1.0};" << std::endl;
-        box_side_two_points.push_back(point_ct);
-        point_ct++;
-        out_file << "Point(" << point_ct << ") = {-13.5, 14.0, "<< extrude_dist << ", 1.0};" << std::endl; 
-        box_side_two_points.push_back(point_ct);
-        point_ct++;
 
         // DEFINE LINES
         int line_ct {1}; // GMSH Formatting Starts at 1
         
-        std::vector<int> af_side_one_lines{};
-        std::vector<int> af_side_two_lines{};
-        std::vector<int> af_tranv_lines{};
+        std::vector<int> af_side_line{};
+        std::vector<int> box_side_line{};
 
-        std::vector<int> box_side_one_lines{};
-        std::vector<int> box_side_two_lines{};
-        std::vector<int> box_tranv_lines{};
 
-        // Write Side One Airfoil Lines - Clockwise
-        for(auto pt_num:af_side_one_points){
-            if (pt_num==af_side_one_points.back()){
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << af_side_one_points.front() << "};" << std::endl;
+        // Write Side Box Lines - Counterclockwise
+        for(auto pt_num:box_side_points){
+            if (pt_num == box_side_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << box_side_points.front() << "};" << std::endl;
             }else {
                 out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
             }
-            af_side_one_lines.push_back(line_ct);
+            box_side_line.push_back(line_ct);
             line_ct++; 
         }
 
-        // Write Side Two Airfoil Lines - Clockwise
-        for(auto pt_num:af_side_two_points){
-            if (pt_num==af_side_two_points.back()){
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << af_side_two_points.front() << "};" << std::endl;
+        // Write Side Airfoil Lines - Clockwise
+        for(auto pt_num:af_side_points){
+            if (pt_num == af_side_points.back()){
+                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << af_side_points.front() << "};" << std::endl;
             }else {
                 out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
             }
-            af_side_two_lines.push_back(line_ct);
-            line_ct++; 
-        }
-
-        // Write Transverse Airfoil Lines - Clockwise
-        for (long long unsigned int i = 0; i<af_side_one_points.size(); i++){
-            out_file << "Line(" << (line_ct) << ") = {" << af_side_one_points.at(i) << ", " << af_side_two_points.at(i) << "};" << std::endl;
-            af_tranv_lines.push_back(line_ct);
-            line_ct++; 
-        }
-
-        // Write Side One Box Lines - Clockwise
-        for(auto pt_num:box_side_one_points){
-            if (pt_num==box_side_one_points.back()){
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << box_side_one_points.front() << "};" << std::endl;
-            }else {
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
-            }
-            box_side_one_lines.push_back(line_ct);
-            line_ct++; 
-        }
-
-        // Write Side Two Box Lines - Clockwise
-        for(auto pt_num:box_side_two_points){
-            if (pt_num==box_side_two_points.back()){
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << box_side_two_points.front() << "};" << std::endl;
-            }else {
-                out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
-            }
-            box_side_two_lines.push_back(line_ct);
-            line_ct++; 
-        }
-
-        // Write Transverse Box Lines - Clockwise
-        for (long long unsigned int i = 0; i<box_side_one_points.size(); i++){
-            out_file << "Line(" << (line_ct) << ") = {" << box_side_one_points.at(i) << ", " << box_side_two_points.at(i) << "};" << std::endl;
-            box_tranv_lines.push_back(line_ct);
+            af_side_line.push_back(line_ct);
             line_ct++; 
         }
 
         // DEFINE CURVE LOOPS
-        int curve_ct {1};
+        int curve_ct {line_ct}; // GMSH numbers curves as a new line
 
-        int af_side_one_curve{};
-        int af_side_two_curve{};
-        std::vector<int> af_tranv_curves{};
+        int af_side_curve{};
+        int box_side_curve{};
 
-        int box_side_one_curve{};
-        int box_side_two_curve{};
-        std::vector<int> box_tranv_curves{};
-
-        // Airfoil Side One Curve Loop - Hole
+        // Box Side Curve Loop - Face
         out_file << "Curve Loop(" << (curve_ct) << ") = {";
-        for (auto ln_num:af_side_one_lines){
-            if(ln_num==af_side_one_lines.back()){
+        for (auto ln_num:box_side_line){
+            if(ln_num == box_side_line.back()){
                 out_file << ln_num << "};" << std::endl;
             }else{
                 out_file << ln_num << ", ";
             }
         }
-        af_side_one_curve = curve_ct;
+        box_side_curve = curve_ct;
         curve_ct++;
 
-        // Airfoil Side Two Curve Loop - Hole
+        // Airfoil Side Curve Loop - Hole
         out_file << "Curve Loop(" << (curve_ct) << ") = {";
-        for (int ln_num = af_side_two_lines.back(); ln_num>=af_side_two_lines.front(); ln_num--){
-            if(ln_num==af_side_two_lines.front()){
+        for (auto ln_num:af_side_line){
+            if(ln_num == af_side_line.back()){
                 out_file << ln_num << "};" << std::endl;
             }else{
                 out_file << ln_num << ", ";
             }
         }
-        af_side_two_curve = curve_ct;
+        af_side_curve = curve_ct;
         curve_ct++;
 
-        // Airfoil Transverse Curve Loops - RH Rule pointing away from faces
-        for(long long unsigned int i = 0; i<af_tranv_lines.size(); i++){
-            out_file << "Curve Loop(" << (curve_ct) << ") = {";
-            if (af_tranv_lines.at(i)==af_tranv_lines.back()){
-                out_file << -1*af_side_one_lines.at(i) << ", "
-                         << af_side_two_lines.at(i) << ", "
-                         << -1*af_tranv_lines.front() << ", "
-                         << af_tranv_lines.at(i) << "};" << std::endl;
-            }
-            else{
-                out_file << -1*af_side_one_lines.at(i) << ", "
-                         << af_side_two_lines.at(i) << ", "
-                         << af_tranv_lines.at(i) << ", "
-                         << -1*af_tranv_lines.at(i+1) << "};" << std::endl;
-            }
-            af_tranv_curves.push_back(curve_ct);
-            curve_ct++;
-        }
+        // DEFINE PLANE SURFACE
+        int surface_ct {curve_ct};
 
-        // Box Side One Curve Loop - Face
-        out_file << "Curve Loop(" << (curve_ct) << ") = {";
-        for (int ln_num = box_side_one_lines.back(); ln_num>=box_side_one_lines.front(); ln_num--){
-            if(ln_num==box_side_one_lines.front()){
-                out_file << -ln_num << "};" << std::endl;
-            }else{
-                out_file << -ln_num << ", ";
-            }
-        }
-        box_side_one_curve = curve_ct;
-        curve_ct++;
+        int side_psurface{};
 
-        // Box Side Two Curve Loop - Face
-        out_file << "Curve Loop(" << (curve_ct) << ") = {";
-        for (auto ln_num:box_side_two_lines){
-            if(ln_num==box_side_two_lines.back()){
-                out_file << ln_num << "};" << std::endl;
-            }else{
-                out_file << ln_num << ", ";
-            }
-        }
-        box_side_two_curve = curve_ct;
-        curve_ct++;
-
-        // Box Transverse Curve Loops
-        for (long long unsigned int i = 0; i<box_tranv_lines.size(); i++){
-            out_file << "Curve Loop(" << (curve_ct) << ") = {";
-            if(box_tranv_lines.at(i)==box_tranv_lines.back()){
-                out_file 
-                         << box_side_one_lines.at(i) << ", "
-                         << -1*box_side_two_lines.at(i) << ", "
-                         << box_tranv_lines.front() << ", "
-                         << -1*box_tranv_lines.at(i) << "};" << std::endl;
-            }else{
-                out_file 
-                         << box_side_one_lines.at(i) << ", "
-                         << -1*box_side_two_lines.at(i) << ", "
-                         << -1*box_tranv_lines.at(i) << ", "
-                         << box_tranv_lines.at(i+1) << "};" << std::endl;
-            }
-            box_tranv_curves.push_back(curve_ct);
-            curve_ct++;
-        }
-
-        // DEFINE PLANE SURFACES
-        int surface_ct {1};
-
-        std::vector<int> af_tranv_psurfaces{};
-
-        int side_one_psurface{};
-        int side_two_psurface{};
-        int bottom_psurface{};
-        int outlet_psurface{};
-        int top_psurface{};
-        int inlet_psurface{};
-
-        // Side One Plane Surface
         out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_side_one_curve) << ", " << (af_side_one_curve) << "};" << std::endl; 
-        side_one_psurface = surface_ct;
+                 << (box_side_curve) << ", " << (af_side_curve) << "};" << std::endl; 
+        side_psurface = surface_ct;
         surface_ct++;
 
-        // Side Two Plane Surface
-        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_side_two_curve) << ", " << (af_side_two_curve) << "};" << std::endl; 
-        side_two_psurface = surface_ct;
-        surface_ct++;    
+        //? DEFINE BOUNDARY LAYER
 
-        // Airfoil Plane Surfaces
-        for (auto tranv_loop:af_tranv_curves){
-            out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                     << (tranv_loop) << "};" << std::endl; 
-            af_tranv_psurfaces.push_back(surface_ct);
-            surface_ct++;  
-        }
 
-        // Bottom Plane Surface
-        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_tranv_curves.at(0)) << "};" << std::endl; 
-        bottom_psurface = surface_ct;
-        surface_ct++;
+        // DEFINE EXTRUSION
+        out_file << "surfaceVector[] = Extrude {0, 0, " << mesh_thickness << "} {" << std::endl;
+        out_file << "   Surface{" << side_psurface << "};" << std::endl;
+        out_file << "   Layers{1};" << std::endl;
+        out_file << "   Recombine;" << std::endl;
+        out_file << "};" << std::endl;
 
-        // Outlet Plane Surface
-        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_tranv_curves.at(1)) << "};" << std::endl; 
-        outlet_psurface = surface_ct;
-        surface_ct++;
-
-        // Top Plane Surface
-        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_tranv_curves.at(2)) << "};" << std::endl; 
-        top_psurface = surface_ct;
-        surface_ct++;
-
-        // Inlet Plane Surface
-        out_file << "Plane Surface(" << (surface_ct) << ") = {" 
-                 << (box_tranv_curves.at(3)) << "};" << std::endl; 
-        inlet_psurface = surface_ct;
-        surface_ct++;
-
-        // DEFINE SURFACE LOOPS - Surface Loop ( expression ) = { expression-list } < Using Sewing >;
-        int surface_loop_ct {1};
-
-        int box_surface_loop{};
-        int af_surface_loop{};
-
-        //Box Surface Loop
-        out_file << "Surface Loop (" << surface_loop_ct << ") = {"
-                 << inlet_psurface << ", "
-                 << side_one_psurface << ", "
-                 << outlet_psurface << ", "
-                 << side_two_psurface << ", "
-                 << bottom_psurface << ", "
-                 << top_psurface << "};" << std::endl;
-        box_surface_loop = surface_loop_ct;
-        surface_loop_ct++;
-
-        // Airfoil Surface Loop
-        out_file << "Surface Loop (" << surface_loop_ct << ") = {";
-        for (auto af_surf:af_tranv_psurfaces){
-            if(af_surf == af_tranv_psurfaces.back()){
-                out_file << af_surf << "};" << std::endl;
-            }else{
-                out_file << af_surf << ", ";
-            }
-        }
-        af_surface_loop = surface_loop_ct;
-        surface_loop_ct++;
-
-        // DEFINE VOLUMES - Volume ( expression ) = { expression-list };
-        int volume_ct {1};
+        // DEFINE PHYSICAL SURFACES AND ASSIGN FROM SURFACE VECTOR
         
-        int mesh_vol {};
+        // surfaceVector contains in the following order:
+        // [0] - front surface (opposed to source surface)
+        // [1] - extruded volume
+        // [2] - inlet surface (belonging to 1st arg in curve loop defining the box)
+        // [3] - top surface (belonging to 2nd arg in curve loop defining the box)
+        // [4] - outlet surface (belonging to 3rd arg in curve loop defining the box)
+        // [5] - bottom surface (belonging to 4th arg in curve loop defining the box)
+        // [6] - first airfoil transverse surface (belonging to 1st arg in curve loop defining airfoil)
+        // [...]
+        // [6+n] - where n is the number of airfoil lines, last airfoil transverse surface (belonging to n+6th arg in curve loop defining airfoil)
 
-        out_file << "Volume (" << volume_ct << ") = {"
-                 << box_surface_loop << ", "
-                 << af_surface_loop << "};" << std::endl;
-
-        mesh_vol = volume_ct;
-        volume_ct++; 
-
-        // DEFINE PHYSICAL SURFACES
-        out_file << "Physical Surface(\"Inlet\") = {" << inlet_psurface << "};" << std::endl;
-        out_file << "Physical Surface(\"Bottom\") = {" << bottom_psurface << "};" << std:: endl;
-        out_file << "Physical Surface(\"Outlet\") = {" << outlet_psurface << "};" << std::endl;
-        out_file << "Physical Surface(\"Top\") = {" << top_psurface << "};" << std::endl;
-        out_file << "Physical Surface(\"Sides\") = {" << side_one_psurface << ", " << side_two_psurface << "};" << std::endl;
+        out_file << "Physical Surface(\"Inlet\") = {surfaceVector[2]};" << std::endl;
+        out_file << "Physical Surface(\"Top\") = {surfaceVector[3]};" << std::endl;
+        out_file << "Physical Surface(\"Outlet\") = {surfaceVector[4]};" << std::endl;
+        out_file << "Physical Surface(\"Bottom\") = {surfaceVector[5]};" << std:: endl;
+        out_file << "Physical Surface(\"Sides\") = {surfaceVector[0], " << side_psurface << "};" << std::endl;
         out_file << "Physical Surface(\"Foil\") = {";
-        for (auto af_surf:af_tranv_psurfaces){
-            if (af_surf == af_tranv_psurfaces.back()){
-                out_file << af_surf << "};" << std::endl;
+        for (long long unsigned int i = 6; i < (af_side_line.size()+6); i++){
+            if (i == ((af_side_line.size()+6)-1)){
+                out_file << "surfaceVector[" << i << "]};" << std::endl;
             }else{
-                out_file << af_surf << ", ";
+                out_file << "surfaceVector[" << i << "], ";
             }
         }
 
         // DEFINE PHYSICAL VOLUMES
-        out_file << "Physical Volume(\"Vol\") = {" << mesh_vol << "};" << std::endl;  
-
-        // DEFINE TRANSFINITE LINES
-        out_file << "Transfinite Curve {"; 
-                for (auto tranv_line:af_tranv_lines){
-                    out_file << tranv_line << ", ";
-                }
-                for (auto tranv_line:box_tranv_lines){
-                    if(tranv_line == box_tranv_lines.back()){
-                        out_file << tranv_line << "} = 1 Using Progression 1;" << std::endl;
-                    }else{
-                        out_file << tranv_line << ", ";
-                    }
-                }
+        out_file << "Physical Volume(\"Vol\") = surfaceVector[1];" << std::endl;  
 
         // RECOMBINE EXTERNAL SURFACES 
-        out_file << "Recombine Surface {" << side_one_psurface << "};" << std::endl;
-        out_file << "Recombine Surface {" << side_two_psurface << "};" << std::endl;
-
-        //? DEFINE BOUNDARY LAYER
-
+        out_file << "Recombine Surface {" << side_psurface << "};" << std::endl;
+        out_file << "Recombine Surface {surfaceVector[0]};" << std::endl;
 
     }
 
