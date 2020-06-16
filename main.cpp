@@ -24,6 +24,14 @@ int main(){
     double grid_size {square_side/20};
     double mesh_thickness {square_side/10};
 
+    // BOUNDARY LAYER PARAMETERS
+    float anisomax {270.0}; // Threshold angle for creating a mesh fan in the boundary layer
+    int quads {1}; // Generate recombined elements in the boundary layer
+    float hfar {0.03}; // Element size far from the wall
+    float hwall_n {0.001}; // Mesh Size Normal to the The Wall
+    float ratio {1.1}; // Size Ratio Between Two Successive Layers
+    float thickness {0.05}; // must be bigger than hwall_n
+
     // STORAGE CONTAINERS
     std::string line{};
     std::vector<std::vector<double>> airfoil_pts;
@@ -63,16 +71,16 @@ int main(){
         return 1;
     }
     else{
-        // MAKE ANY NECCESSARY MODS TO AIRFOIL POINTS
+        // MAKE ANY NECCESSARY MODS TO AIRFOIL POINTS AND FLAG THE RIGHT CONDITIONS
         // Check for identical first and last airfoil coordinates, modify accordingly
         if(airfoil_pts.front()==airfoil_pts.back()){
             airfoil_pts.pop_back();
         }
 
-        // Check for odd number of triangles
+        // Check for odd number of lines
+        std::vector<double> xy_pt_last {airfoil_pts.back()};
+        std::vector<double> xy_pt_first {airfoil_pts.front()};
         if((airfoil_pts.size()%2)!=0){
-            std::vector<double> xy_pt_last {airfoil_pts.back()};
-            std::vector<double> xy_pt_first {airfoil_pts.front()};
             std::vector<double> new_pt{};
 
             double new_x {xy_pt_last.front() + ((xy_pt_first.front() - xy_pt_last.front())/2)};
@@ -81,6 +89,12 @@ int main(){
             new_pt.push_back(new_y);
             airfoil_pts.push_back(new_pt);
         }
+
+        // Check for fan conditions
+        bool double_fan {false};
+        if(xy_pt_first.front() == xy_pt_last.front()){
+            double_fan =true;
+        }     
         
         // DEFINE POINTS
         int point_ct {1}; // GMSH Formatting Starts at 1
@@ -126,7 +140,7 @@ int main(){
         // DEFINE LINES
         int line_ct {1}; // GMSH Formatting Starts at 1
         
-        std::vector<int> af_side_line{};
+        std::vector<int> af_side_lines{};
         std::vector<int> box_side_line{};
 
 
@@ -148,7 +162,7 @@ int main(){
             }else {
                 out_file << "Line(" << (line_ct) << ") = {" << pt_num << ", " << pt_num+1 << "};" << std::endl;
             }
-            af_side_line.push_back(line_ct);
+            af_side_lines.push_back(line_ct);
             line_ct++; 
         }
 
@@ -172,8 +186,8 @@ int main(){
 
         // Airfoil Side Curve Loop - Hole
         out_file << "Curve Loop(" << (curve_ct) << ") = {";
-        for (auto ln_num:af_side_line){
-            if(ln_num == af_side_line.back()){
+        for (auto ln_num:af_side_lines){
+            if(ln_num == af_side_lines.back()){
                 out_file << ln_num << "};" << std::endl;
             }else{
                 out_file << ln_num << ", ";
@@ -192,8 +206,48 @@ int main(){
         side_psurface = surface_ct;
         surface_ct++;
 
-        //? DEFINE BOUNDARY LAYER
-
+        // DEFINE BOUNDARY LAYER
+        // Field[1] = BoundaryLayer; // hwall * ratio^(dist/hwall)
+        // Field[1].AnisoMax = 1.0; // Threshold angle for creating a mesh fan in the boundary layer
+        // Field[1].EdgesList = {};  // EdgesList for 2D: Tags of curves in the geometric model for which a boundary layer is needed  
+        // Field[1].FacesList = {};  // FacesList for 3D: Tags of faces in the geometric model for which a boundary layer is needed  
+        // Field[1].ExcludedFaceList = {}; // Tags of surfaces in the geometric model where the boundary layer should not be applied
+        // Field[1].FanNodesList = {}; // Tags of points in the geometric model for which a fan is created
+        // Field[1].IntersectMetrics = 0; // Intersect metrics of all faces
+        // Field[1].NodesList = {}; //Tags of points in the geometric model for which a boundary layer ends
+        // Field[1].Quads = 1; // Generate recombined elements in the boundary layer
+        // Field[1].hfar = 0.03; // Element size far from the wall
+        // Field[1].hwall_n = 0.001; // Mesh Size Normal to the The Wall
+        // Field[1].hwall_n_nodes = {}; // Mesh Size Normal to the The Wall at nodes (overwrite hwall_n when defined)
+        // Field[1].hwall_t = 0.001; // ???
+        // Field[1].ratio = 1.1; // Size Ratio Between Two Successive Layers
+        // Field[1].thickness = 0.05;  // Maximal thickness of the boundary layer, must be bigger than hwall_n
+        // BoundaryLayer Field = 1; // Maximal thickness of the boundary layer
+        
+        out_file << "Field[1] = BoundaryLayer;" << std::endl;
+        out_file << "Field[1].AnisoMax = " << anisomax << ";" << std::endl;
+        out_file << "Field[1].EdgesList = {";
+        for(auto af_line:af_side_lines){
+            if(af_line == af_side_lines.back()){
+                out_file << af_line << "};" << std::endl;
+            }else{
+                out_file << af_line << ", ";
+            }
+        }
+        if(double_fan){
+            out_file << "Field[1].FanNodesList = {" 
+                 << af_side_points.front() << ", " << af_side_points.back() << "};" << std::endl;
+        }
+        else{
+            out_file << "Field[1].FanNodesList = {" 
+                 << af_side_points.front() << "};" << std::endl;
+        }
+        out_file << "Field[1].Quads = " << quads << ";" << std::endl;
+        out_file << "Field[1].hfar = " << hfar << ";" << std::endl;
+        out_file << "Field[1].hwall_n = " << hwall_n << ";" << std::endl; 
+        out_file << "Field[1].ratio = " << ratio << ";" << std::endl;
+        out_file << "Field[1].thickness = " << thickness << ";" << std::endl;
+        out_file << "BoundaryLayer Field = 1;" << std::endl;
 
         // DEFINE EXTRUSION
         out_file << "surfaceVector[] = Extrude {0, 0, " << mesh_thickness << "} {" << std::endl;
@@ -221,8 +275,8 @@ int main(){
         out_file << "Physical Surface(\"Bottom\") = {surfaceVector[5]};" << std:: endl;
         out_file << "Physical Surface(\"Sides\") = {surfaceVector[0], " << side_psurface << "};" << std::endl;
         out_file << "Physical Surface(\"Foil\") = {";
-        for (long long unsigned int i = 6; i < (af_side_line.size()+6); i++){
-            if (i == ((af_side_line.size()+6)-1)){
+        for (long long unsigned int i = 6; i < (af_side_lines.size()+6); i++){
+            if (i == ((af_side_lines.size()+6)-1)){
                 out_file << "surfaceVector[" << i << "]};" << std::endl;
             }else{
                 out_file << "surfaceVector[" << i << "], ";
@@ -232,9 +286,9 @@ int main(){
         // DEFINE PHYSICAL VOLUMES
         out_file << "Physical Volume(\"Vol\") = surfaceVector[1];" << std::endl;  
 
-        // RECOMBINE EXTERNAL SURFACES 
-        out_file << "Recombine Surface {" << side_psurface << "};" << std::endl;
-        out_file << "Recombine Surface {surfaceVector[0]};" << std::endl;
+        //! RECOMBINE EXTERNAL SURFACES - BOUNDARY LAYER DOES NOT LIKE THIS
+        // out_file << "Recombine Surface {" << side_psurface << "};" << std::endl;
+        // out_file << "Recombine Surface {surfaceVector[0]};" << std::endl;
 
     }
 
