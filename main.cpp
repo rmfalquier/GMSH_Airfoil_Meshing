@@ -21,16 +21,17 @@ int main(){
 
     // MESH PARAMETERS
     double square_side {30.0};
-    double grid_size {square_side/20};
+    double grid_size {square_side/100};
     double mesh_thickness {square_side/10};
 
     // BOUNDARY LAYER PARAMETERS
-    float anisomax {270.0}; // Threshold angle for creating a mesh fan in the boundary layer
+    // double anisomax {225.0}; // Threshold angle for creating a mesh fan in the boundary layer
+    double anisomax {90}; // Threshold angle for creating a mesh fan in the boundary layer
     int quads {1}; // Generate recombined elements in the boundary layer
-    float hfar {0.03}; // Element size far from the wall
-    float hwall_n {0.001}; // Mesh Size Normal to the The Wall
-    float ratio {1.1}; // Size Ratio Between Two Successive Layers
-    float thickness {0.05}; // must be bigger than hwall_n
+    double hfar {0.001}; // Element size far from the wall
+    double hwall_n {0.001}; // Mesh Size Normal to the The Wall
+    double ratio {1.05}; // Size Ratio Between Two Successive Layers
+    double thickness {0.95*(square_side/2)}; // must be bigger than hwall_n
 
     // STORAGE CONTAINERS
     std::string line{};
