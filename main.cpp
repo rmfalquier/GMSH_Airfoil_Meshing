@@ -93,6 +93,7 @@ int main(){
         }
 
         // Check for fan conditions
+        // ! NEEDS SOME SERIOUS CLEANUP
         bool double_fan {false};
         if(xy_pt_first.front() == xy_pt_last.front()){
             double_fan =true;
@@ -133,6 +134,7 @@ int main(){
             airfoil_pts.insert(airfoil_pts.begin(),temp_new_pt);
             temp_new_pt.clear();
 
+            // ! THE INCREMENT AND FOR LOOP CONDITIONS SHOULD BE LINKED 
             double y_increment {mid_pt_length/40};
             double temp_new_y_pt {-1*temp_C_vec.back()};
             for (size_t i = 0; i<80; i++){
