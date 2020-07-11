@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <cmath>
 
 int main(){
     // AIRFOILE FILE NAME
@@ -95,6 +96,112 @@ int main(){
         bool double_fan {false};
         if(xy_pt_first.front() == xy_pt_last.front()){
             double_fan =true;
+
+            // Calculate Top Edge Vector
+            std::vector<double> temp_A_pt {airfoil_pts.at(0)};
+            std::vector<double> temp_B_pt {airfoil_pts.at(1)};
+            std::vector<double> top_edge_vec {};
+
+            top_edge_vec.push_back(temp_B_pt.front() - temp_A_pt.front());
+            top_edge_vec.push_back(temp_B_pt.back() - temp_A_pt.back());
+
+            // Calculate Mid Point Length           
+            double mid_pt_length {(xy_pt_first.back() - xy_pt_last.back())/2};
+
+            // Calculate Perpendicular Vector and Radius from Mid Point
+            std::vector<double> temp_C_vec {};
+            double temp_y {mid_pt_length+xy_pt_last.back()};
+            double temp_x {((top_edge_vec.back()*(xy_pt_first.back()-temp_y))/top_edge_vec.front())+xy_pt_first.front()};
+
+            temp_C_vec.push_back(xy_pt_first.front() - temp_x);
+            temp_C_vec.push_back(xy_pt_first.back() - temp_y);
+
+            double radius {std::sqrt((temp_C_vec.front()*temp_C_vec.front()) + (temp_C_vec.back()*temp_C_vec.back()))};
+
+            // Calculate Arc Center
+            double arc_center_x {xy_pt_first.front() - radius};
+            double arc_center_y {mid_pt_length+xy_pt_last.back()};
+
+            // Make Points
+            std::vector <double> temp_new_pt {};
+
+            airfoil_pts.erase(airfoil_pts.begin());
+            airfoil_pts.pop_back();
+
+            temp_new_pt.push_back(arc_center_x + temp_C_vec.front());
+            temp_new_pt.push_back(arc_center_y + temp_C_vec.back());
+            airfoil_pts.insert(airfoil_pts.begin(),temp_new_pt);
+            temp_new_pt.clear();
+
+            double y_increment {mid_pt_length/40};
+            double temp_new_y_pt {-1*temp_C_vec.back()};
+            for (size_t i = 0; i<80; i++){
+                double temp_new_x_pt {std::sqrt((radius*radius)-(temp_new_y_pt*temp_new_y_pt))};
+
+                temp_new_y_pt = temp_new_y_pt + arc_center_y;
+                temp_new_x_pt = temp_new_x_pt + arc_center_x;
+
+                temp_new_pt.push_back(temp_new_x_pt);
+                temp_new_pt.push_back(temp_new_y_pt);
+                airfoil_pts.push_back(temp_new_pt);
+                temp_new_pt.clear();
+
+                temp_new_y_pt = temp_new_y_pt + y_increment;
+                // std::cout << temp_arg << std::endl;
+                // std::cout << temp_arg_sqrt << std::endl;
+                // std::cout << temp_new_pt.front() << std::endl; 
+                // std::cout << temp_new_pt.back() << std::endl; 
+                // std::cout << std::endl; 
+            }
+
+            // std::cout << radius << std::endl;
+            // double limit {0.0000000001};
+            // double dot_prod {limit+1};
+            // int i {0};
+
+            // std::cout << radius << std::endl;
+            // std::cout << arc_center_x << std::endl;
+            // std::cout << arc_center_y << std::endl;
+            // std::cout << std::endl;
+
+            // // while(dot_prod>limit){
+            // while(i<3){
+            //     double temp_new_x {arc_center_x + temp_C_vec.front()};
+            //     double temp_new_y {arc_center_y + temp_C_vec.back()};
+
+            //     double temp_D_vec_x {temp_B_pt.front() - temp_new_x};
+            //     double temp_D_vec_y {temp_B_pt.back() - temp_new_y};
+            //     double mag_D_vec {sqrt((temp_D_vec_x*temp_D_vec_x) + (temp_D_vec_y*temp_D_vec_y))};
+
+            //     dot_prod = (temp_C_vec.front()*temp_D_vec_x) + (temp_C_vec.back()*temp_D_vec_y);
+
+            //     double theta {std::acos(dot_prod / (radius*mag_D_vec))};
+
+            //     if(theta<std::acos(0)){
+            //         arc_center_y = arc_center_y + ((xy_pt_first.back() - arc_center_y)/2);
+            //     }else{
+            //         arc_center_y = arc_center_y - ((xy_pt_first.back() - arc_center_y)/2);
+            //     }
+
+            //     std::cout << temp_new_x << std::endl;
+            //     std::cout << temp_new_y << std::endl;
+            //     std::cout << temp_D_vec_x << std::endl;
+            //     std::cout << temp_D_vec_y << std::endl;
+            //     std::cout << theta << std::endl; 
+            //     std::cout << dot_prod << std::endl; 
+            //     std::cout << arc_center_y << std::endl; 
+            //     std::cout << std::endl;
+
+            //     i++;
+            // }
+
+            // // std::cout << temp_C_vec.front() << std::endl;
+            // // std::cout << temp_C_vec.back() << std::endl;
+            // // std::cout << radius << std::endl;   
+            // // std::cout << arc_center_x << std::endl; 
+
+            // // double y_arc_bottom_ctr
+
         }     
         
         // DEFINE POINTS
@@ -236,8 +343,8 @@ int main(){
             }
         }
         if(double_fan){
-            out_file << "Field[1].FanNodesList = {" 
-                 << af_side_points.front() << ", " << af_side_points.back() << "};" << std::endl;
+            // out_file << "Field[1].FanNodesList = {" 
+            //      << af_side_points.front() << ", " << af_side_points.back() << "};" << std::endl;
         }
         else{
             out_file << "Field[1].FanNodesList = {" 
