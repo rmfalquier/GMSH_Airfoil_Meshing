@@ -22,16 +22,33 @@ int main(){
 
     // MESH PARAMETERS
     double square_side {30.0};
-    double grid_size {square_side/100};
+    double grid_size {square_side/50};
     double mesh_thickness {square_side/10};
 
+    // y+ estimation
+    double freestream_vel {30};                                                         //[m/s]
+    double char_length {1};                                                             //[m]
+    double density {1.225};                                                             //[kg/m^3]
+    double dyn_visc {0.00001789};                                                       //kg/m.s]
+    double kin_visc {dyn_visc/density};                                                 //[m^2/s]
+    double Re_num {(density*freestream_vel*char_length)/dyn_visc};                      //[]
+    double skin_fric_coeff_over_two {0.0359*std::pow(Re_num,-0.2)};                     //[]
+    double fric_vel {std::abs(freestream_vel)*std::sqrt(skin_fric_coeff_over_two)};     //[]
+    double y_plus {1};                                                                //[]
+    double cell_ctr_height {y_plus*kin_visc/fric_vel};                                  //[m]    
+
+    std::cout << "Kinematic Viscosity: " << kin_visc << std::endl;
+    std::cout << "Skin Friction Coeff Cf/2: " << skin_fric_coeff_over_two << std::endl;
+    std::cout << "Friction Velocity " << fric_vel << std::endl;
+    std::cout << "Reynolds Number: " << Re_num << std::endl;   
+    std::cout << "Near wall cell centre height: " << cell_ctr_height << std::endl;   
+
     // BOUNDARY LAYER PARAMETERS
-    // double anisomax {225.0}; // Threshold angle for creating a mesh fan in the boundary layer
     double anisomax {90}; // Threshold angle for creating a mesh fan in the boundary layer
     int quads {1}; // Generate recombined elements in the boundary layer
-    double hfar {0.001}; // Element size far from the wall
-    double hwall_n {0.001}; // Mesh Size Normal to the The Wall
-    double ratio {1.05}; // Size Ratio Between Two Successive Layers
+    double hfar {0.1}; // Element size far from the wall
+    double hwall_n {cell_ctr_height}; // Mesh Size Normal to the The Wall
+    double ratio {1.1}; // Size Ratio Between Two Successive Layers
     double thickness {0.95*(square_side/2)}; // must be bigger than hwall_n
 
     // STORAGE CONTAINERS
