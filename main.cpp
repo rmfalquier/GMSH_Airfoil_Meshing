@@ -47,7 +47,7 @@ int main(){
     double anisomax {90}; // Threshold angle for creating a mesh fan in the boundary layer
     int quads {1}; // Generate recombined elements in the boundary layer
     double hfar {0.1}; // Element size far from the wall
-    double hwall_n {cell_ctr_height}; // Mesh Size Normal to the The Wall
+    double hwall_n {cell_ctr_height*2}; // Mesh Size Normal to the The Wall
     double ratio {1.1}; // Size Ratio Between Two Successive Layers
     double thickness {0.95*(square_side/2)}; // must be bigger than hwall_n
 
@@ -166,61 +166,7 @@ int main(){
                 temp_new_pt.clear();
 
                 temp_new_y_pt = temp_new_y_pt + y_increment;
-                // std::cout << temp_arg << std::endl;
-                // std::cout << temp_arg_sqrt << std::endl;
-                // std::cout << temp_new_pt.front() << std::endl; 
-                // std::cout << temp_new_pt.back() << std::endl; 
-                // std::cout << std::endl; 
             }
-
-            // std::cout << radius << std::endl;
-            // double limit {0.0000000001};
-            // double dot_prod {limit+1};
-            // int i {0};
-
-            // std::cout << radius << std::endl;
-            // std::cout << arc_center_x << std::endl;
-            // std::cout << arc_center_y << std::endl;
-            // std::cout << std::endl;
-
-            // // while(dot_prod>limit){
-            // while(i<3){
-            //     double temp_new_x {arc_center_x + temp_C_vec.front()};
-            //     double temp_new_y {arc_center_y + temp_C_vec.back()};
-
-            //     double temp_D_vec_x {temp_B_pt.front() - temp_new_x};
-            //     double temp_D_vec_y {temp_B_pt.back() - temp_new_y};
-            //     double mag_D_vec {sqrt((temp_D_vec_x*temp_D_vec_x) + (temp_D_vec_y*temp_D_vec_y))};
-
-            //     dot_prod = (temp_C_vec.front()*temp_D_vec_x) + (temp_C_vec.back()*temp_D_vec_y);
-
-            //     double theta {std::acos(dot_prod / (radius*mag_D_vec))};
-
-            //     if(theta<std::acos(0)){
-            //         arc_center_y = arc_center_y + ((xy_pt_first.back() - arc_center_y)/2);
-            //     }else{
-            //         arc_center_y = arc_center_y - ((xy_pt_first.back() - arc_center_y)/2);
-            //     }
-
-            //     std::cout << temp_new_x << std::endl;
-            //     std::cout << temp_new_y << std::endl;
-            //     std::cout << temp_D_vec_x << std::endl;
-            //     std::cout << temp_D_vec_y << std::endl;
-            //     std::cout << theta << std::endl; 
-            //     std::cout << dot_prod << std::endl; 
-            //     std::cout << arc_center_y << std::endl; 
-            //     std::cout << std::endl;
-
-            //     i++;
-            // }
-
-            // // std::cout << temp_C_vec.front() << std::endl;
-            // // std::cout << temp_C_vec.back() << std::endl;
-            // // std::cout << radius << std::endl;   
-            // // std::cout << arc_center_x << std::endl; 
-
-            // // double y_arc_bottom_ctr
-
         }     
         
         // DEFINE POINTS
