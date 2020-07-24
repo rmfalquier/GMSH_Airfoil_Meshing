@@ -12,20 +12,16 @@
 #include <cmath>
 
 int main(){
-    // AIRFOILE FILE NAME
+    // AIRFOILE FILE NAMES
     std::string in_airfoil_file_name{"./.AIRFOILS_IN/NACA2412.txt"};
     std::string out_airfoil_file_name {"./.AIRFOILS_OUT/NACA2412.geo"};
-    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_prof.dat"};
-    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_PROF.geo"};
-    // std::string in_airfoil_file_name{"./.AIRFOILS_IN/riot_ctr_braked_100.dat"};
-    // std::string out_airfoil_file_name {"./.AIRFOILS_OUT/RIOT_CTR_BRAKED_PROF.geo"};
 
     // MESH PARAMETERS
     double square_side {30.0};
     double grid_size {square_side/50};
     double mesh_thickness {square_side/10};
 
-    // y+ estimation
+    // Y+ ESTIMATION
     double freestream_vel {30};                                                         //[m/s]
     double char_length {1};                                                             //[m]
     double density {1.225};                                                             //[kg/m^3]
@@ -48,7 +44,7 @@ int main(){
     int quads {1}; // Generate recombined elements in the boundary layer
     double hfar {0.1}; // Element size far from the wall
     double hwall_n {cell_ctr_height*2}; // Mesh Size Normal to the The Wall
-    double ratio {1.1}; // Size Ratio Between Two Successive Layers
+    double ratio {1.05}; // Size Ratio Between Two Successive Layers
     double thickness {0.95*(square_side/2)}; // must be bigger than hwall_n
 
     // STORAGE CONTAINERS
@@ -169,6 +165,65 @@ int main(){
             }
         }     
         
+        // ! UNDER CONSTRUCTION
+        // REFINE ASPECT RATIO
+        // Variables
+        std::vector<std::vector<double>> airfoil_pts_dummy {airfoil_pts};
+        airfoil_pts.clear();
+        double x1 {};
+        double y1 {};
+        double x2 {};
+        double y2 {};
+        double line_x {};
+        double line_y {};
+        double line_length{};
+        double line_AR{};
+
+        // Refinement Loop
+        // ! Need to add stuff for last point
+        for(auto current_pt:airfoil_pts_dummy){
+            if(current_pt == airfoil_pts_dummy.front()){
+                x1 = current_pt.front();
+                y1 = current_pt.back();
+                airfoil_pts.push_back(current_pt);
+            }else{
+                std::vector<double> temp_pt {};
+                
+                x2 = current_pt.front();
+                y2 = current_pt.back();
+                line_x = x2-x1;
+                line_y = y2-y1;
+                line_length = std::sqrt((line_x*line_x)+(line_y*line_y));
+                line_AR = line_length/hwall_n;
+
+                if(line_AR>5){
+                    double new_line_length {line_length};
+                    double new_line_AR {line_AR};
+                    size_t divisor {1};
+                    
+                    while(new_line_AR>100){
+                        divisor = divisor*2;
+                        new_line_length = line_length/divisor;
+                        new_line_AR = new_line_length/hwall_n;
+                    }
+
+                    for(size_t i {1}; i<divisor; i++){
+                        temp_pt.push_back(x1 + (i*(line_x/divisor)));
+                        temp_pt.push_back(y1 + (i*(line_y/divisor)));
+                        airfoil_pts.push_back(temp_pt);
+                        temp_pt.clear();
+                    }
+                    airfoil_pts.push_back(current_pt);
+                }else{
+                    airfoil_pts.push_back(current_pt);
+                }
+
+                // Update Points
+                x1 = x2;
+                y1 = y2;
+            } 
+        }
+
         // DEFINE POINTS
         int point_ct {1}; // GMSH Formatting Starts at 1
 
